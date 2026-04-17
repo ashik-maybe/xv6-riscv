@@ -689,3 +689,9 @@ procdump(void)
     printf("\n");
   }
 }
+
+uint64
+sys_getpinfo(void)
+{
+  return 0;
+}
