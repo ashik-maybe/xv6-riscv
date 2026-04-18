@@ -24,7 +24,14 @@ int getpid(void);
 char* sys_sbrk(int,int);
 int pause(int);
 int uptime(void);
-int getpinfo(void*);
+struct pinfo {
+  int pid;
+  int priority;
+  int state;
+  int ticks;
+};
+
+int getpinfo(struct pinfo*);
 int set_priority(int, int);
 
 // ulib.c

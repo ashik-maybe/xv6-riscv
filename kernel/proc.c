@@ -693,5 +693,50 @@ procdump(void)
 uint64
 sys_getpinfo(void)
 {
-  return 0;
+  struct pinfo *info;
+  struct proc *p;
+  uint64 addr;
+
+  argaddr(0, &addr);
+  info = (struct pinfo *)addr;
+
+  int count = 0;
+  acquire(&ptable.lock);
+  for(p = proc; p < &proc[NPROC]; p++){
+    if(p->state == UNUSED)
+      continue;
+    info[count].pid = p->pid;
+    info[count].priority = p->priority;
+    info[count].state = p->state;
+    info[count].ticks = p->rticks + p->sticks;
+    count++;
+  }
+  release(&ptable.lock);
+
+  return count;
+}
+
+uint64
+sys_set_priority(void)
+{
+  int pid, priority;
+  struct proc *p;
+
+  argint(0, &pid);
+  argint(1, &priority);
+
+  if(priority < 1 || priority > 5)
+    return -1;
+
+  acquire(&ptable.lock);
+  for(p = proc; p < &proc[NPROC]; p++){
+    if(p->pid == pid){
+      p->priority = priority;
+      release(&ptable.lock);
+      return 0;
+    }
+  }
+  release(&ptable.lock);
+
+  return -1;
 }
