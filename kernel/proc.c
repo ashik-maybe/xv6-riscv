@@ -447,6 +447,12 @@ scheduler(void)
         }
         best = p;
         best_priority = p->priority;
+      } else if(p->state == RUNNABLE) {
+        // This RUNNABLE process was skipped - apply simple aging
+        if(p->priority < 5) {
+          p->priority++;  // Gradually increase priority to prevent starvation
+        }
+        release(&p->lock);
       } else {
         release(&p->lock);
       }
