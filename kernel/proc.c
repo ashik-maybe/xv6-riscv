@@ -704,17 +704,20 @@ sys_getpinfo(void)
   info = (struct pinfo *)addr;
 
   int count = 0;
-  acquire(&ptable.lock);
   for(p = proc; p < &proc[NPROC]; p++){
-    if(p->state == UNUSED)
+    acquire(&p->lock);
+    if(p->state == UNUSED){
+      release(&p->lock);
       continue;
+    }
     info[count].pid = p->pid;
     info[count].priority = p->priority;
     info[count].state = p->state;
     info[count].ticks = p->rticks + p->sticks;
     count++;
+    release(&p->lock);
+    if(count >= 64) break;
   }
-  release(&ptable.lock);
 
   return count;
 }
@@ -731,15 +734,15 @@ sys_set_priority(void)
   if(priority < 1 || priority > 5)
     return -1;
 
-  acquire(&ptable.lock);
   for(p = proc; p < &proc[NPROC]; p++){
+    acquire(&p->lock);
     if(p->pid == pid){
       p->priority = priority;
-      release(&ptable.lock);
+      release(&p->lock);
       return 0;
     }
+    release(&p->lock);
   }
-  release(&ptable.lock);
 
   return -1;
 }
