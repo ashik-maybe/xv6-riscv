@@ -460,6 +460,7 @@ scheduler(void)
 
     if(best) {
       best->state = RUNNING;
+      best->priority = 3;  // Reset to default when process runs
       c->proc = best;
       swtch(&c->context, &best->context);
       // When we return here, best's lock has been released by sched()
