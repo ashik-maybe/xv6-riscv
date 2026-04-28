@@ -25,8 +25,7 @@ This branch extends xv6-riscv with two features:
 ### Prerequisites (Fedora Workstation 43)
 
 ```bash
-sudo dnf install -y gcc make git perl ncurses-devel \
-    qemu-system-riscv riscv64-elf-gcc
+sudo dnf install -y gcc make git perl ncurses-devel qemu-system-riscv gcc-riscv64-linux-gnu binutils-riscv64-linux-gnu
 ```
 
 ### Build & Run

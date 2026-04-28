@@ -432,7 +432,6 @@ scheduler(void)
   for(;;){
     // Enable interrupts on this cpu
     intr_on();
-    intr_off();
 
     struct proc *best = 0;
     int best_priority = -1;
@@ -440,33 +439,31 @@ scheduler(void)
     // Find RUNNABLE process with highest priority
     for(p = proc; p < &proc[NPROC]; p++) {
       acquire(&p->lock);
-      if(p->state == RUNNABLE && p->priority > best_priority) {
-        // If we already selected a process, release its lock
-        if(best) {
-          release(&best->lock);
+      if(p->state == RUNNABLE) {
+        if(p->priority > best_priority) {
+          // If we already selected a process, release its lock
+          if(best) {
+            release(&best->lock);
+          }
+          best = p;
+          best_priority = p->priority;
+          // Keep best->lock held
+          continue;
         }
-        best = p;
-        best_priority = p->priority;
-      } else if(p->state == RUNNABLE) {
-        // This RUNNABLE process was skipped - apply simple aging
-        if(p->priority < 5) {
-          p->priority++;  // Gradually increase priority to prevent starvation
-        }
-        release(&p->lock);
-      } else {
-        release(&p->lock);
       }
+      release(&p->lock);
     }
 
     if(best) {
       best->state = RUNNING;
-      best->priority = 3;  // Reset to default when process runs
       c->proc = best;
       swtch(&c->context, &best->context);
-      // When we return here, best's lock has been released by sched()
+
+      // Process is done running for now.
+      // It should have changed its p->state before coming back.
       c->proc = 0;
+      release(&best->lock);
     } else {
-      // nothing to run; wait for interrupt
       intr_off();
       asm volatile("wfi");
     }
@@ -703,27 +700,36 @@ procdump(void)
 uint64
 sys_getpinfo(void)
 {
-  struct pinfo *info;
-  struct proc *p;
   uint64 addr;
+  struct proc *p;
+  struct pinfo info;
+  int count = 0;
+  uint current_ticks;
 
   argaddr(0, &addr);
-  info = (struct pinfo *)addr;
 
-  int count = 0;
+  acquire(&tickslock);
+  current_ticks = ticks;
+  release(&tickslock);
+
   for(p = proc; p < &proc[NPROC]; p++){
     acquire(&p->lock);
-    if(p->state == UNUSED){
+    if(p->state != UNUSED){
+      info.pid = p->pid;
+      info.priority = p->priority;
+      info.state = p->state;
+      info.ticks = current_ticks;
+      printf("kernel: getpinfo pid=%d pri=%d\n", info.pid, info.priority);
       release(&p->lock);
-      continue;
+      
+      if(copyout(myproc()->pagetable, addr + count*sizeof(struct pinfo), (char *)&info, sizeof(struct pinfo)) < 0){
+        return -1;
+      }
+      count++;
+      if(count >= 64) break;
+    } else {
+      release(&p->lock);
     }
-    info[count].pid = p->pid;
-    info[count].priority = p->priority;
-    info[count].state = p->state;
-    info[count].ticks = p->rticks + p->sticks;
-    count++;
-    release(&p->lock);
-    if(count >= 64) break;
   }
 
   return count;
@@ -738,6 +744,8 @@ sys_set_priority(void)
   argint(0, &pid);
   argint(1, &priority);
 
+  printf("kernel: set_priority pid=%d pri=%d\n", pid, priority);
+
   if(priority < 1 || priority > 5)
     return -1;
 
@@ -745,6 +753,7 @@ sys_set_priority(void)
     acquire(&p->lock);
     if(p->pid == pid){
       p->priority = priority;
+      printf("kernel: set pid=%d pri to %d\n", p->pid, p->priority);
       release(&p->lock);
       return 0;
     }

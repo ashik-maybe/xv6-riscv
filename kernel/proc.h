@@ -106,3 +106,10 @@ struct proc {
   char name[16];               // Process name (debugging)
   int priority;               // Priority level (1-5, higher = more important)
 };
+
+struct pinfo {
+  int pid;
+  int priority;
+  int state;
+  int ticks;
+};
