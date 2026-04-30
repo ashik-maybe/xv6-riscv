@@ -2,7 +2,7 @@
 
 ## What's New
 
-This branch extends xv6-riscv with two features:
+This branch extends xv6-riscv with these features:
 
 ### 1. Priority-Based Scheduler
 - Priority levels (1–5, 5 = highest priority)
@@ -17,6 +17,10 @@ This branch extends xv6-riscv with two features:
 ### 3. Set Priority (`set_priority`)
 - Change process priority from command line
 - `setpriority <pid> <priority>`
+
+### 4. CPU Hog (`cpuhog`)
+- Spins in an infinite loop to test the scheduler
+- `cpuhog <priority>` — higher priority = more CPU ticks
 
 ---
 
@@ -68,12 +72,12 @@ $ setpriority 2 5
 Priority set to 5
 ```
 
-### 3. Test Scheduler
+### 3. Test Scheduler with CPU Hog
 
 ```bash
-$ sh               # New process
-$ setpriority 3 5   # Boost priority
-# Process 3 now preferred by scheduler
+$ cpuhog 1 &        # Low priority (background)
+$ cpuhog 5 &        # High priority (background)
+$ pinfo             # High-priority process gets more CPU ticks
 ```
 
 ---
@@ -84,13 +88,14 @@ $ setpriority 3 5   # Boost priority
 |------|--------|
 | `kernel/proc.h` | Added `int priority` to struct proc |
 | `kernel/proc.c` | Priority init, getpinfo, set_priority, scheduler with aging |
-| `kernel/syscall.h` | Defined SYS_getpinfo=22, SYS_set_priority=23 |
+| `kernel/syscall.h` | Defined SYS_getpinfo=22, SYS_set_priority=23, SYS_cpuhog=24 |
 | `kernel/syscall.c` | Syscall dispatch entries |
 | `user/usys.pl` | User stubs |
 | `user/user.h` | struct pinfo, function prototypes |
 | `user/pinfo.c` | **New** - Process info utility |
 | `user/setpriority.c` | **New** - Set priority utility |
-| `Makefile` | Added pinfo, setpriority to UPROGS |
+| `user/cpuhog.c` | **New** - CPU hog test program |
+| `Makefile` | Added pinfo, setpriority, cpuhog to UPROGS |
 
 ---
 
