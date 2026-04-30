@@ -52,15 +52,15 @@ start()
 void
 timerinit()
 {
-  // enable supervisor-mode timer interrupts.
-  w_mie(r_mie() | MIE_STIE);
+  // enable machine-mode interrupts.
+  w_mstatus(r_mstatus() | MSTATUS_MIE);
+  // enable machine-mode timer interrupts.
+  w_mie(r_mie() | MIE_MTIE);
   
-  // enable the sstc extension (i.e. stimecmp).
-  w_menvcfg(r_menvcfg() | (1L << 63)); 
-  
-  // allow supervisor to use stimecmp and time.
-  w_mcounteren(r_mcounteren() | 2);
-  
-  // ask for the very first timer interrupt.
-  w_stimecmp(r_time() + 1000000);
+  // set the machine-mode timer's compare register.
+  // QEMU's timer frequency is 10 MHz.
+  // We set the next interrupt to occur in 0.1 second.
+  volatile uint64 *mtime = (volatile uint64 *)0x0200bff8;
+  volatile uint64 *mtimecmp = (volatile uint64 *)(0x02004000 + r_mhartid() * 8);
+  *mtimecmp = *mtime + 10000000;  // 0.1 sec at 10 MHz
 }

@@ -6,6 +6,9 @@
 #include "proc.h"
 #include "defs.h"
 
+// System call prototypes
+uint64 sys_cpuhog(void);
+
 struct cpu cpus[NCPU];
 
 struct proc proc[NPROC];
@@ -385,17 +388,18 @@ kwait(uint64 addr)
         // make sure the child isn't still in exit() or swtch().
         acquire(&pp->lock);
 
-        havekids = 1;
-        if(pp->state == ZOMBIE){
-          // Found one.
-          pid = pp->pid;
-          if(addr != 0 && copyout(p->pagetable, addr, (char *)&pp->xstate,
-                                  sizeof(pp->xstate)) < 0) {
-            release(&pp->lock);
-            release(&wait_lock);
-            return -1;
-          }
-          freeproc(pp);
+         havekids = 1;
+         if(pp->state == ZOMBIE){
+           // Found one.
+           pid = pp->pid;
+           if(addr != 0 && copyout(p->pagetable, addr, (char *)&pp->xstate,
+                                   sizeof(pp->xstate)) < 0) {
+             release(&pp->lock);
+             release(&wait_lock);
+             return -1;
+           }
+
+           freeproc(pp);
           release(&pp->lock);
           release(&wait_lock);
           return pid;
@@ -703,14 +707,9 @@ sys_getpinfo(void)
   uint64 addr;
   struct proc *p;
   struct pinfo info;
-  int count = 0;
-  uint current_ticks;
+  int count =0;
 
   argaddr(0, &addr);
-
-  acquire(&tickslock);
-  current_ticks = ticks;
-  release(&tickslock);
 
   for(p = proc; p < &proc[NPROC]; p++){
     acquire(&p->lock);
@@ -718,8 +717,8 @@ sys_getpinfo(void)
       info.pid = p->pid;
       info.priority = p->priority;
       info.state = p->state;
-      info.ticks = current_ticks;
-      printf("kernel: getpinfo pid=%d pri=%d\n", info.pid, info.priority);
+      info.ticks = p->ticks;  // Use per-process ticks!
+      printf("kernel: getpinfo pid=%d pri=%d ticks=%d\n", info.pid, info.priority, info.ticks);
       release(&p->lock);
       
       if(copyout(myproc()->pagetable, addr + count*sizeof(struct pinfo), (char *)&info, sizeof(struct pinfo)) < 0){
@@ -761,4 +760,12 @@ sys_set_priority(void)
   }
 
   return -1;
+}
+
+uint64
+sys_cpuhog(void)
+{
+  // This syscall does nothing - cpuhog.c handles everything in user space
+  // The CPU hog is just an infinite loop in user space
+  return 0;
 }

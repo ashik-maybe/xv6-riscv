@@ -152,8 +152,16 @@ kerneltrap()
   }
 
   // give up the CPU if this is a timer interrupt.
-  if(which_dev == 2 && myproc() != 0)
+  if(which_dev == 2 && myproc() != 0){
+    // Increment per-process CPU ticks before yielding
+    struct proc *p = myproc();
+    if(p && p->state == RUNNING){
+      acquire(&p->lock);
+      p->ticks++;
+      release(&p->lock);
+    }
     yield();
+  }
 
   // the yield() may have caused some traps to occur,
   // so restore trap registers for use by kernelvec.S's sepc instruction.
@@ -171,10 +179,11 @@ clockintr()
     release(&tickslock);
   }
 
-  // ask for the next timer interrupt. this also clears
-  // the interrupt request. 1000000 is about a tenth
-  // of a second.
-  w_stimecmp(r_time() + 1000000);
+  // ask for the next timer interrupt using CLINT.
+  // QEMU virt CLINT: mtime at 0x0200bff8, mtimecmp at 0x02004000 + hart*8
+  volatile uint64 *mtime = (volatile uint64 *)0x0200bff8;
+  volatile uint64 *mtimecmp = (volatile uint64 *)(0x02004000 + r_mhartid() * 8);
+  *mtimecmp = *mtime + 10000000;  // 0.1 sec at 10 MHz
 }
 
 // check if it's an external interrupt or software interrupt,

@@ -44,3 +44,4 @@ entry("pause");
 entry("uptime");
 entry("getpinfo");
 entry("set_priority");
+entry("cpuhog");

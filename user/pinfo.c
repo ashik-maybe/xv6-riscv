@@ -22,10 +22,10 @@ main(int argc, char **argv)
   struct pinfo info[64];
   int n = getpinfo(info);
 
-  printf("PID  PRI  STATE     TICKS\n");
-  printf("---------------------------\n");
+  printf("PID   PRIORITY  STATE       CPU_TICKS\n");
+  printf("----------------------------------------\n");
   for(int i = 0; i < n; i++){
-    printf("%d    %d     %s       %d\n",
+    printf("%d     %d         %s         %d\n",
            info[i].pid,
            info[i].priority,
            state_name(info[i].state),

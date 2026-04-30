@@ -130,6 +130,7 @@ static uint64 (*syscalls[])(void) = {
 [SYS_close]   sys_close,
 [SYS_getpinfo]     sys_getpinfo,
 [SYS_set_priority] sys_set_priority,
+[SYS_cpuhog]       sys_cpuhog,
 };
 
 void

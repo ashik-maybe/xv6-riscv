@@ -105,6 +105,7 @@ struct proc {
   struct inode *cwd;           // Current directory
   char name[16];               // Process name (debugging)
   int priority;               // Priority level (1-5, higher = more important)
+  uint64 ticks;                // Per-process CPU ticks
 };
 
 struct pinfo {
