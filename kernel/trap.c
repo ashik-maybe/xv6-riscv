@@ -81,8 +81,13 @@ usertrap(void)
     kexit(-1);
 
   // give up the CPU if this is a timer interrupt.
-  if(which_dev == 2)
+  if(which_dev == 2) {
+    struct proc *p = myproc();
+    if(p && p->state == RUNNING){
+      p->ticks++;
+    }
     yield();
+  }
 
   prepare_return();
 
@@ -153,12 +158,12 @@ kerneltrap()
 
   // give up the CPU if this is a timer interrupt.
   if(which_dev == 2 && myproc() != 0){
-    // Increment per-process CPU ticks before yielding
+    // Increment per-process CPU ticks before yielding.
+    // p->lock is already held by the scheduler on this CPU,
+    // so no other CPU can touch p. Safe to increment without acquire.
     struct proc *p = myproc();
     if(p && p->state == RUNNING){
-      acquire(&p->lock);
       p->ticks++;
-      release(&p->lock);
     }
     yield();
   }
@@ -179,11 +184,10 @@ clockintr()
     release(&tickslock);
   }
 
-  // ask for the next timer interrupt using CLINT.
-  // QEMU virt CLINT: mtime at 0x0200bff8, mtimecmp at 0x02004000 + hart*8
-  volatile uint64 *mtime = (volatile uint64 *)0x0200bff8;
-  volatile uint64 *mtimecmp = (volatile uint64 *)(0x02004000 + r_mhartid() * 8);
-  *mtimecmp = *mtime + 10000000;  // 0.1 sec at 10 MHz
+  // ask for the next timer interrupt using stimecmp (SSTC).
+  // QEMU's timer frequency is 10 MHz.
+  // Set the next interrupt to occur in 0.1 second.
+  w_stimecmp(r_time() + 1000000);
 }
 
 // check if it's an external interrupt or software interrupt,

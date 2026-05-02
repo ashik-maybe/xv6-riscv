@@ -434,31 +434,26 @@ scheduler(void)
 
   c->proc = 0;
   for(;;){
-    // Enable interrupts on this cpu
+    // Avoid deadlock by ensuring that devices can interrupt.
     intr_on();
 
-    struct proc *best = 0;
     int best_priority = -1;
+    struct proc *best = 0;
 
-    // Find RUNNABLE process with highest priority
     for(p = proc; p < &proc[NPROC]; p++) {
       acquire(&p->lock);
-      if(p->state == RUNNABLE) {
-        if(p->priority > best_priority) {
-          // If we already selected a process, release its lock
-          if(best) {
-            release(&best->lock);
-          }
-          best = p;
-          best_priority = p->priority;
-          // Keep best->lock held
-          continue;
-        }
+      if(p->state == RUNNABLE && p->priority > best_priority) {
+        if(best)
+          release(&best->lock);
+        best = p;
+        best_priority = p->priority;
+        // keep best->lock held
+      } else {
+        release(&p->lock);
       }
-      release(&p->lock);
     }
 
-    if(best) {
+    if(best != 0) {
       best->state = RUNNING;
       c->proc = best;
       swtch(&c->context, &best->context);
@@ -467,9 +462,6 @@ scheduler(void)
       // It should have changed its p->state before coming back.
       c->proc = 0;
       release(&best->lock);
-    } else {
-      intr_off();
-      asm volatile("wfi");
     }
   }
 }
@@ -718,7 +710,6 @@ sys_getpinfo(void)
       info.priority = p->priority;
       info.state = p->state;
       info.ticks = p->ticks;  // Use per-process ticks!
-      printf("kernel: getpinfo pid=%d pri=%d ticks=%d\n", info.pid, info.priority, info.ticks);
       release(&p->lock);
       
       if(copyout(myproc()->pagetable, addr + count*sizeof(struct pinfo), (char *)&info, sizeof(struct pinfo)) < 0){
@@ -743,8 +734,6 @@ sys_set_priority(void)
   argint(0, &pid);
   argint(1, &priority);
 
-  printf("kernel: set_priority pid=%d pri=%d\n", pid, priority);
-
   if(priority < 1 || priority > 5)
     return -1;
 
@@ -752,7 +741,6 @@ sys_set_priority(void)
     acquire(&p->lock);
     if(p->pid == pid){
       p->priority = priority;
-      printf("kernel: set pid=%d pri to %d\n", p->pid, p->priority);
       release(&p->lock);
       return 0;
     }

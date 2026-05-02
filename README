@@ -8,7 +8,7 @@ This branch extends xv6-riscv with these features:
 - Priority levels (1–5, 5 = highest priority)
 - Scheduler picks highest-priority RUNNABLE process
 - Round-robin fallback for equal-priority processes
-- Simple aging prevents starvation (skipped processes get priority boost)
+- No aging — starvation is a known limitation
 
 ### 2. Process Info (`getpinfo`)
 - Syscall returns PID, priority, state, CPU ticks
@@ -87,7 +87,7 @@ $ pinfo             # High-priority process gets more CPU ticks
 | File | Change |
 |------|--------|
 | `kernel/proc.h` | Added `int priority` to struct proc |
-| `kernel/proc.c` | Priority init, getpinfo, set_priority, scheduler with aging |
+| `kernel/proc.c` | Priority init, getpinfo, set_priority, priority-based scheduler |
 | `kernel/syscall.h` | Defined SYS_getpinfo=22, SYS_set_priority=23, SYS_cpuhog=24 |
 | `kernel/syscall.c` | Syscall dispatch entries |
 | `user/usys.pl` | User stubs |
@@ -101,6 +101,5 @@ $ pinfo             # High-priority process gets more CPU ticks
 
 ## Known Limitations
 
-1. **Simple aging:** Priority increments by 1 when skipped. Production uses time-based aging.
-2. **Priority resets on run:** Boosted priority resets to default (3) when process gets CPU time.
-3. **Single CPU:** Tested on single CPU only.
+1. **No aging/starvation prevention:** Higher-priority processes can starve lower-priority ones.
+2. **Single CPU:** Tested on single CPU only.
